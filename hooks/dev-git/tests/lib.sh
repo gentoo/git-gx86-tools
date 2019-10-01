@@ -50,13 +50,13 @@ run_test() {
 	)
 }
 
-# Run the test for specified branch, presuming it's a new branch.
-# $1 - branch name
-run_test_branch() {
-	local branch=${1}
+# Run the test for specified ref, presuming it's a new branch/tag.
+# $1 - ref path
+run_test_ref() {
+	local ref=${1}
 
 	(
-		set -- "refs/heads/${branch}" 0000000000000000000000000000000000000000 HEAD
+		set -- "${ref}" 0000000000000000000000000000000000000000 HEAD
 		set +e
 		. "${HOOK_PATH}"
 	)
@@ -75,7 +75,17 @@ test_success() {
 # $1 - branch name
 test_branch_success() {
 	local branch=${1}
-	run_test_branch "${branch}"
+	run_test_ref "refs/heads/${branch}"
+	tend ${?}
+	: $(( TEST_RET |= ${?} ))
+}
+
+# Run the hook presuming new tag is added.
+# Expect success.
+# $1 - tag name
+test_tag_success() {
+	local tag=${1}
+	run_test_ref "refs/tags/${tag}"
 	tend ${?}
 	: $(( TEST_RET |= ${?} ))
 }
@@ -106,7 +116,26 @@ test_branch_failure() {
 	local expected=${2}
 	local msg
 
-	if msg=$(run_test_branch "${branch}"); then
+	if msg=$(run_test_ref "refs/heads/${branch}"); then
+		tend 1 "Hook unexpectedly succeeded"
+		return 1
+	fi
+
+	[[ ${msg} == ${expected} ]]
+	tend ${?} "'${msg}' != '${expected}'"
+	: $(( TEST_RET |= ${?} ))
+}
+
+# Run the hook presuming new tag is added.
+# Expect failure with message matching the pattern.
+# $1 - tag name
+# $2 - bash pattern to match
+test_tag_failure() {
+	local tag=${1}
+	local expected=${2}
+	local msg
+
+	if msg=$(run_test_ref "refs/tags/${tag}"); then
 		tend 1 "Hook unexpectedly succeeded"
 		return 1
 	fi

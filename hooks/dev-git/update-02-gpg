@@ -18,6 +18,9 @@ if [ -z "${refname}" -o -z "${oldrev}" -o -z "${newrev}" ]; then
 	exit 1
 fi
 
+# branch names or 'all', or 'all-refs' for all refs
+SIGNED_BRANCHES=$(git config --get gentoo.signed-branches)
+: ${SIGNED_BRANCHES:=master}
 VERIFY_SIGS=$(git config --get gentoo.verify-signatures)
 : ${VERIFY_SIGS:=gentoo-devs}
 
@@ -68,68 +71,84 @@ case ${VERIFY_SIGS} in
 		exit 1
 esac
 
-# --- Check types
-# if $newrev is 0000...0000, it's a commit to delete a ref.
-zero="0000000000000000000000000000000000000000"
-
-case ${refname} in
-	refs/heads/master)
-
-		IFS='
-'
-
-		# verify that everything on the left-hand side of commit history is signed
-		# (further branches of merges can be unsigned)
-		revs=$(git rev-list --first-parent "${newrev}" "^${oldrev}")
-		for r in ${revs}; do
-			committer=$(git show -q --pretty=format:'%ce' "${r}")
-			if [[ ${VERIFY_SIGS} == gentoo-devs && ${committer} != *@gentoo.org ]]; then
-				echo "*** Committer address is not @gentoo.org, refusing"
-				exit 1
-			fi
-
-			signst=$(git show -q --pretty=format:'%G?' "${r}")
-			case ${VERIFY_SIGS} in
-				gentoo-devs)
-					# gentoo dev signatures must be Good
-					[[ ${signst} == G ]] && continue
-					;;
-				no)
-					# additionally skip untrusted/impossible to check
-					# when verification is disabled
-					[[ ${signst} == [GUE] ]] && continue
-					;;
-			esac
-
-			# error reporting
-			case ${signst} in
-				U)
-					echo "*** Untrusted signature on ${r}, refusing"
-					exit 1
-					;;
-				B)
-					echo "*** Bad signature on ${r}, refusing"
-					exit 1
-					;;
-				N)
-					echo "*** No signature on ${r}, refusing"
-					exit 1
-					;;
-				E)
-					echo "*** Signature cannot be checked on ${r}, refusing"
-					exit 1
-					;;
-				*)
-					echo "*** Unknown signature status '${signst}', refusing"
-					exit 1
-					;;
-			esac
-		done
-
+case ${SIGNED_BRANCHES} in
+	all-refs)
+		;;
+	all)
+		[[ ${refname} == refs/heads/* ]] || exit 0
 		;;
 	*)
-		;;
+		[[ ${refname} == refs/heads/* ]] || exit 0
+		branch_found=
+		for branch in ${SIGNED_BRANCHES}; do
+			if [[ ${refname#refs/heads/} == ${branch} ]]; then
+				branch_found=1
+				break
+			fi
+		done
+		[[ ${branch_found} == 1 ]] || exit 0
 esac
+
+IFS='
+'
+
+# special cases
+zeros=0000000000000000000000000000000000000000
+# branch removal
+[[ ${newrev} == "${zeros}" ]] && exit 0
+# new branch; try to find a merge base with master
+if [[ ${oldrev} == "${zeros}" && ${refname} != refs/heads/master ]]; then
+	mergebase=$(git merge-base refs/heads/master "${newrev}")
+	[[ -n ${mergebase} ]] && oldrev=${mergebase}
+fi
+rev_list_arg="${oldrev}..${newrev}"
+# new and no common commit?  gotta check them all
+[[ ${oldrev} == "${zeros}" ]] && rev_list_arg="${newrev}"
+
+while read -r r; do
+	committer=$(git show -q --pretty=format:'%ce' "${r}")
+	if [[ ${VERIFY_SIGS} == gentoo-devs && ${committer} != *@gentoo.org ]]; then
+		echo "*** Committer address is not @gentoo.org, refusing"
+		exit 1
+	fi
+
+	signst=$(git show -q --pretty=format:'%G?' "${r}")
+	case ${VERIFY_SIGS} in
+		gentoo-devs)
+			# gentoo dev signatures must be Good
+			[[ ${signst} == G ]] && continue
+			;;
+		no)
+			# additionally skip untrusted/impossible to check
+			# when verification is disabled
+			[[ ${signst} == [GUE] ]] && continue
+			;;
+	esac
+
+	# error reporting
+	case ${signst} in
+		U)
+			echo "*** Untrusted signature on ${r}, refusing"
+			exit 1
+			;;
+		B)
+			echo "*** Bad signature on ${r}, refusing"
+			exit 1
+			;;
+		N)
+			echo "*** No signature on ${r}, refusing"
+			exit 1
+			;;
+		E)
+			echo "*** Signature cannot be checked on ${r}, refusing"
+			exit 1
+			;;
+		*)
+			echo "*** Unknown signature status '${signst}', refusing"
+			exit 1
+			;;
+	esac
+done < <(git rev-list --first-parent "${rev_list_arg}")
 
 # --- Finished
 exit 0
