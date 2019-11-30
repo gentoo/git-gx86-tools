@@ -35,7 +35,7 @@ while read -r oldrev newrev refname; do
                 # 2. we accept only footer-style to avoid false positives,
                 # 3. we have to scan the whole commit message because
                 # developers still fail to have just one footer.
-                Closes:*|Resolves:*|Fixes:*)
+                Closes:*|Resolves:*)
                     close=1;;
                 # alternate form to ref without closing
                 Bug:*)
