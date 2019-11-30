@@ -29,6 +29,7 @@ while read -r oldrev newrev refname; do
 
     while read -r commithash; do
         while read -r l; do
+            is_fixes=0
             case ${l} in
                 # kinda-like github/gitlab/bitbucket but:
                 # 1. we accept only -s forms for simplicity,
@@ -36,6 +37,10 @@ while read -r oldrev newrev refname; do
                 # 3. we have to scan the whole commit message because
                 # developers still fail to have just one footer.
                 Closes:*|Resolves:*)
+                    close=1;;
+                # normally used to reference commit ids
+                Fixes:*)
+                    is_fixes=1
                     close=1;;
                 # alternate form to ref without closing
                 Bug:*)
@@ -46,6 +51,16 @@ while read -r oldrev newrev refname; do
 
             # strip whitespace, split words
             bugref=( ${l#*:} )
+            if [[ ${is_fixes} == 1 ]]; then
+                case ${bugref} in
+                    # commit ref
+                    [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]*)
+                        continue;;
+                    *)
+                        echo "WARNING: 'Fixes' tag should reference commit id, not: ${bugref[*]}"
+                        ;;
+                esac
+            fi
             for bug in "${bugref[@]}"; do
                 case ${bug} in
                     # long bugzilla URL
