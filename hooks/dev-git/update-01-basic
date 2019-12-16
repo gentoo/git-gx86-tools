@@ -1,4 +1,5 @@
 #!/bin/sh
+# gentoo-infra: github.com/gentoo/git-gx86-tools.git:update-01-basic
 
 # --- Command line
 refname=${1}

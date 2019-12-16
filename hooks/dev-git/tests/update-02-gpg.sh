@@ -1,4 +1,5 @@
 #!/bin/bash
+# gentoo-infra: github.com/gentoo/git-gx86-tools.git:tests/update-02-gpg.sh
 # Tests for update-02-gpg hook
 # Copyright 2019 Michał Górny
 # Distributed under the terms of the GNU General Public License v2 or later

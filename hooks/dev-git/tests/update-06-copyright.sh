@@ -1,4 +1,5 @@
 #!/bin/bash
+# gentoo-infra: github.com/gentoo/git-gx86-tools.git:tests/update-06-copyright.sh
 # Tests for update-06-copyright hook
 # Copyright 2018 Michał Górny
 # Distributed under the terms of the GNU General Public License v2 or later
