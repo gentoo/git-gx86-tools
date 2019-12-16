@@ -10,6 +10,17 @@ newrev=$3
 
 export LC_MESSAGES=C
 
+# special cases
+zeros=0000000000000000000000000000000000000000
+# branch removal
+[[ ${newrev} == "${zeros}" ]] && exit 0
+# new branch; try to find a merge base with master
+if [[ ${oldrev} == "${zeros}" && ${refname} != refs/heads/master ]]; then
+	mergebase=$(git merge-base refs/heads/master "${newrev}")
+	[[ -n ${mergebase} ]] && oldrev=${mergebase}
+	[[ -z ${mergebase} ]] && echo "WARNING: No common commits with master!"
+fi
+
 ret=0
 while read commithash; do
     # verify that the commit object (including author, committer, commit

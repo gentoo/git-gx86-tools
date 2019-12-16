@@ -74,6 +74,7 @@ zeros=0000000000000000000000000000000000000000
 if [[ ${oldrev} == "${zeros}" && ${refname} != refs/heads/master ]]; then
 	mergebase=$(git merge-base refs/heads/master "${newrev}")
 	[[ -n ${mergebase} ]] && oldrev=${mergebase}
+	[[ -z ${mergebase} ]] && echo "WARNING: No common commits with master!"
 fi
 rev_list_arg="${oldrev}..${newrev}"
 # new and no common commit?  gotta check them all

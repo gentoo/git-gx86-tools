@@ -11,6 +11,17 @@ newrev=$3
 # skip non-master commits
 [[ ${refname} == refs/heads/master ]] || exit 0
 
+# special cases
+zeros=0000000000000000000000000000000000000000
+# branch removal
+[[ ${newrev} == "${zeros}" ]] && exit 0
+# new branch; try to find a merge base with master
+if [[ ${oldrev} == "${zeros}" && ${refname} != refs/heads/master ]]; then
+	mergebase=$(git merge-base refs/heads/master "${newrev}")
+	[[ -n ${mergebase} ]] && oldrev=${mergebase}
+	[[ -z ${mergebase} ]] && echo "WARNING: No common commits with master!"
+fi
+
 # Filenames must contain only the characters [A-Za-z0-9._+-] and must
 # not begin with a dot, a hyphen, or a plus sign.
 # https://devmanual.gentoo.org/general-concepts/tree/#what-belongs-in-the-tree%3F
