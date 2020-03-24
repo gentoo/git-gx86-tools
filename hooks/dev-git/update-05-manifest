@@ -11,9 +11,6 @@ newrev=$3
 
 export LC_MESSAGES=C
 
-# enforce only on master branch
-[[ ${refname} == refs/heads/master ]] || exit 0
-
 # special cases
 zeros=0000000000000000000000000000000000000000
 # branch removal
